@@ -52,7 +52,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: true, // Ensures that the certificate is verified
-    ca: fs.readFileSync('./certificates/supabase-ca.crt').toString()
+    ca: fs.readFileSync('./certificates/prod-ca-2021.crt').toString()
   }
 });
 
