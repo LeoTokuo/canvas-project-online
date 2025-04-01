@@ -46,15 +46,14 @@ function isAuthenticated(req, res, next) {
 }
 
 
-const { URL } = require('url');
-
-const dbUrl = new URL(process.env.DATABASE_URL);
-dbUrl.searchParams.set('sslmode', 'require');
-
 const pool = new Pool({
-  connectionString: dbUrl.toString(),
-  ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    require: true,
+    rejectUnauthorized: false
+  }
 });
+
 
 // Test the database connection
 pool.query('SELECT NOW()', (err, result) => {
