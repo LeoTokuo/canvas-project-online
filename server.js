@@ -46,7 +46,7 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-const caCert = fs.readFileSync(__dirname + '/certificates/supabase-ca.crt').toString();
+const caCert = fs.readFileSync(__dirname + '/certificates/prod-ca-2021.crt').toString();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
