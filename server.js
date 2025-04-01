@@ -46,13 +46,16 @@ function isAuthenticated(req, res, next) {
 }
 
 
+const fs = require('fs');
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    require: true,
-    rejectUnauthorized: false
+    rejectUnauthorized: true, // Ensures that the certificate is verified
+    ca: fs.readFileSync('./certificates/supabase-ca.crt').toString()
   }
 });
+
 
 
 // Test the database connection
