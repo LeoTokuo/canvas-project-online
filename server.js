@@ -7,6 +7,7 @@ const socketIO = require('socket.io');
 const session = require('express-session');
 const helmet = require('helmet');
 const { Pool } = require('pg');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -45,17 +46,15 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-
-const fs = require('fs');
+const caCert = fs.readFileSync(__dirname + '/certificates/supabase-ca.crt').toString();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: true, // Ensures that the certificate is verified
-    ca: fs.readFileSync('./certificates/prod-ca-2021.crt').toString()
+    rejectUnauthorized: true,
+    ca: caCert
   }
 });
-
 
 
 // Test the database connection
