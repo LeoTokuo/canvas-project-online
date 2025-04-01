@@ -45,13 +45,11 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-// Set up PostgreSQL connection pool using the DATABASE_URL from Supabase
+// Set up PostgreSQL connection pool using the DATABASE_URL from Supabase.
+// Ensure that your DATABASE_URL includes '?sslmode=require'
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { 
-    require: true,
-    rejectUnauthorized: false },
-  family: 4
+  ssl: { rejectUnauthorized: false }
 });
 
 // Test the database connection
