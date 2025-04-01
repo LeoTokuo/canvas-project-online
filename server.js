@@ -7,7 +7,6 @@ const socketIO = require('socket.io');
 const session = require('express-session');
 const helmet = require('helmet');
 const { Pool } = require('pg');
-const { parse } = require('pg-connection-string'); // Used to parse DATABASE_URL
 
 const app = express();
 const server = http.createServer(app);
@@ -46,20 +45,11 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-// Parse the DATABASE_URL from Supabase into individual connection parameters
-const config = parse(process.env.DATABASE_URL);
-// Convert port to a number if needed
-config.port = parseInt(config.port, 10);
-
-// Set up PostgreSQL connection pool using the parsed parameters and force IPv4.
+// Set up PostgreSQL connection pool using the DATABASE_URL from Supabase
 const pool = new Pool({
-  host: config.host,
-  port: config.port,
-  user: config.user,
-  password: config.password,
-  database: config.database,
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  family: 4  // Force IPv4
+  family: 4
 });
 
 // Test the database connection
