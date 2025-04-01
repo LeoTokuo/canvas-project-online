@@ -48,7 +48,8 @@ function isAuthenticated(req, res, next) {
 // Set up PostgreSQL connection pool using the DATABASE_URL from Supabase
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  family: 4
 });
 
 // Test the database connection
