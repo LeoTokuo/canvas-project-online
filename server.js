@@ -6,7 +6,7 @@ const http = require('http');
 const socketIO = require('socket.io');
 const session = require('express-session');
 const helmet = require('helmet');
-const sql = require('mssql');
+const { Pool } = require('pg');
 
 const app = express();
 const server = http.createServer(app);
@@ -25,11 +25,11 @@ app.use(
 
 // Middleware for JSON parsing
 app.use(express.json());
-// Serve static files from /public (ensure no folder named "game_sessions" exists here)
+// Serve static files from /public
 app.use(express.static(__dirname + '/public'));
 app.use("/favicon.ico", express.static("public/favicon.ico"));
 
-// Configure express-session for login persistence using env variable for secret
+// Configure express-session using environment variable for secret
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -45,26 +45,20 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-// Set up Microsoft SQL Server connection configuration using environment variables
-const dbConfig = {
-  user: process.env.DB_USER ,
-  password: process.env.DB_PASSWORD ,
-  server: process.env.DB_SERVER ,
-  database: process.env.DB_NAME ,
-  options: {
-    encrypt: false,
-    trustServerCertificate: true
-  }
-};
+// Set up PostgreSQL connection pool using the DATABASE_URL from Supabase
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-// Create a connection pool (as a promise)
-const poolPromise = new sql.ConnectionPool(dbConfig)
-  .connect()
-  .then(pool => {
-    console.log('Connected to MSSQL');
-    return pool;
-  })
-  .catch(err => console.error('Database Connection Failed!', err));
+// Test the database connection
+pool.query('SELECT NOW()', (err, result) => {
+  if (err) {
+    console.error('Database Connection Failed!', err);
+  } else {
+    console.log('Connected to PostgreSQL:', result.rows[0]);
+  }
+});
 
 //
 // API Endpoints
@@ -73,25 +67,25 @@ const poolPromise = new sql.ConnectionPool(dbConfig)
 // --- Login Endpoint ---
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  
+
   // Allow default guest login.
   if (username === "guest" && password === "guest") {
     req.session.user = { id: "guest", name: "Guest", permissionVal: 0 };
     return res.json({ success: true, user: req.session.user });
   }
-  
+
   try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('name', sql.VarChar, username)
-      .input('pass', sql.VarChar, password)
-      .query('SELECT TOP 1 * FROM admAccounts WHERE name = @name AND pass = @pass');
-    
-    if (result.recordset.length === 0) {
+    const result = await pool.query(
+      'SELECT * FROM admaccounts WHERE name = $1 AND pass = $2 LIMIT 1',
+      [username, password]
+    );
+
+    if (result.rows.length === 0) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
-    const account = result.recordset[0];
-    req.session.user = { id: account.id, name: account.name, permissionVal: account.permissionVal };
+
+    const account = result.rows[0];
+    req.session.user = { id: account.id, name: account.name, permissionVal: account.permissionval };
     res.json({ success: true, user: req.session.user });
   } catch (err) {
     console.error(err);
@@ -104,13 +98,11 @@ app.post('/game_sessions', isAuthenticated, async (req, res) => {
   const { data } = req.body;
   const sessionDate = new Date();
   try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('sessionDate', sql.DateTime, sessionDate)
-      .input('data', sql.NVarChar(sql.MAX), JSON.stringify(data))
-      .query('INSERT INTO game_sessions (sessionDate, data) OUTPUT INSERTED.sessionId VALUES (@sessionDate, @data)');
-    
-    const sessionId = result.recordset[0].sessionId;
+    const result = await pool.query(
+      'INSERT INTO game_sessions (sessiondate, data) VALUES ($1, $2) RETURNING sessionid',
+      [sessionDate, JSON.stringify(data)]
+    );
+    const sessionId = result.rows[0].sessionid;
     res.json({ success: true, sessionId, sessionDate, data });
   } catch (err) {
     console.error('Error creating game session:', err);
@@ -123,20 +115,20 @@ app.put('/game_sessions/:sessionId', isAuthenticated, async (req, res) => {
   const { data } = req.body;
   const sessionDate = new Date();
   try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('data', sql.NVarChar(sql.MAX), JSON.stringify(data))
-      .input('sessionDate', sql.DateTime, sessionDate)
-      .input('sessionId', sql.Int, req.params.sessionId)
-      .query('UPDATE game_sessions SET data = @data, sessionDate = @sessionDate WHERE sessionId = @sessionId');
-    
-    if (result.rowsAffected[0] === 0) {
+    const result = await pool.query(
+      'UPDATE game_sessions SET data = $1, sessiondate = $2 WHERE sessionid = $3',
+      [JSON.stringify(data), sessionDate, req.params.sessionId]
+    );
+
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
-    const updated = await pool.request()
-      .input('sessionId', sql.Int, req.params.sessionId)
-      .query('SELECT * FROM game_sessions WHERE sessionId = @sessionId');
-    let updatedSession = updated.recordset[0];
+
+    const updated = await pool.query(
+      'SELECT * FROM game_sessions WHERE sessionid = $1',
+      [req.params.sessionId]
+    );
+    let updatedSession = updated.rows[0];
     try {
       updatedSession.data = typeof updatedSession.data === 'string'
         ? JSON.parse(updatedSession.data)
@@ -151,17 +143,16 @@ app.put('/game_sessions/:sessionId', isAuthenticated, async (req, res) => {
 });
 
 // --- Get an Existing Game Session (API) ---
-// New API endpoint for loading session data in JSON format.
 app.get('/api/game_sessions/:sessionId', isAuthenticated, async (req, res) => {
   try {
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('sessionId', sql.Int, req.params.sessionId)
-      .query('SELECT * FROM game_sessions WHERE sessionId = @sessionId');
-    if (result.recordset.length === 0) {
+    const result = await pool.query(
+      'SELECT * FROM game_sessions WHERE sessionid = $1',
+      [req.params.sessionId]
+    );
+    if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
-    let session = result.recordset[0];
+    let session = result.rows[0];
     try {
       session.data = typeof session.data === 'string'
         ? JSON.parse(session.data)
@@ -211,7 +202,7 @@ io.on('connection', (socket) => {
 //
 // Start the Server
 //
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
