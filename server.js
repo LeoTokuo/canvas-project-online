@@ -192,13 +192,31 @@ app.get('/game_sessions/:sessionId', isAuthenticated, (req, res) => {
 //
 io.on('connection', (socket) => {
   console.log('A user connected');
-  socket.on('canvas-update', (data) => {
-    socket.broadcast.emit('canvas-update', data);
+
+  // Listen for the client to join a room (session)
+  socket.on('joinRoom', (sessionId) => {
+    socket.join(sessionId);
+    console.log(`Socket ${socket.id} joined room ${sessionId}`);
   });
+
+  // Listen for canvas-update events
+  socket.on('canvas-update', (data) => {
+    // Assume data contains a property "sessionId"
+    // Broadcast update to everyone else in the room
+    const room = data.sessionId;
+    if (room) {
+      socket.to(room).emit('canvas-update', data);
+    } else {
+      // Fallback: broadcast to everyone except sender
+      socket.broadcast.emit('canvas-update', data);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('A user disconnected');
   });
 });
+
 
 //
 // Start the Server

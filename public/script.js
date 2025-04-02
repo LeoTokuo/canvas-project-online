@@ -775,47 +775,44 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Socket.IO for Real-Time Collaboration
   // ====================
+  
+  // Join the Socket.IO room corresponding to the sessionId
   const socket = io();
-
-socket.on('canvas-update', function(data) {
-  console.log("Canvas update received:", data);
-  // To prevent feedback loops, mark incoming objects:
-  canvas.loadFromJSON(data, function() {
-    // Optionally mark objects so that remote updates don't trigger new events:
-    canvas.getObjects().forEach(obj => obj._fromSocket = true);
-    canvas.renderAll();
-    // Remove the temporary flag:
-    canvas.getObjects().forEach(obj => delete obj._fromSocket);
+  socket.emit('joinRoom', sessionId);
+  
+  // Listen for canvas updates from others
+  socket.on('canvas-update', function(data) {
+    console.log("Canvas update received:", data);
+    // Apply the update (for example, reload the canvas state)
+    canvas.loadFromJSON(data, function() {
+      canvas.renderAll();
+    });
   });
-});
 
-socket.on('connect', function() {
-  console.log("Connected to socket server.");
-});
+  // Example: Emitting canvas updates on object changes
+  canvas.on("object:added", function(e) {
+    // Prevent emitting if the object came from a socket update
+    if (!e.target._fromSocket) {
+      const canvasState = canvas.toJSON(['layer']);
+      socket.emit("canvas-update", { sessionId, data: canvasState });
+    }
+  });
 
-socket.on('disconnect', function() {
-  console.log("Disconnected from socket server.");
-});
+  canvas.on("object:modified", function(e) {
+    if (!e.target._fromSocket) {
+      const canvasState = canvas.toJSON(['layer']);
+      socket.emit("canvas-update", { sessionId, data: canvasState });
+    }
+  });
 
-// When your canvas changes, emit updates:
-// For example, emit on object:added, object:modified, or object:removed:
-canvas.on("object:added", function(e) {
-  if (!e.target._fromSocket) {
-    const canvasState = canvas.toJSON(['layer']);
-    socket.emit("canvas-update", canvasState);
-  }
-});
-canvas.on("object:modified", function(e) {
-  if (!e.target._fromSocket) {
-    const canvasState = canvas.toJSON(['layer']);
-    socket.emit("canvas-update", canvasState);
-  }
-});
-canvas.on("object:removed", function(e) {
-  if (!e.target._fromSocket) {
-    const canvasState = canvas.toJSON(['layer']);
-    socket.emit("canvas-update", canvasState);
-  }
-});
+  canvas.on("object:removed", function(e) {
+    if (!e.target._fromSocket) {
+      const canvasState = canvas.toJSON(['layer']);
+      socket.emit("canvas-update", { sessionId, data: canvasState });
+    }
+  });
+
+  // Make the socket available globally if needed:
+  window.socket = socket;
 
 });
