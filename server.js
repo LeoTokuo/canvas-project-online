@@ -76,7 +76,7 @@ app.post('/login', async (req, res) => {
 
   // Allow default guest login.
   if (username === "guest" && password === "guest") {
-    req.session.user = { id: "guest", name: "Guest", permissionVal: 0 };
+    req.session.user = { id: "guest", name: "guest", permissionVal: 0 };
     return res.json({ success: true, user: req.session.user });
   }
 
