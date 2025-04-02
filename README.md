@@ -5,7 +5,7 @@ Conta com:
 * Ferramentas Desenhar, Selecionar, Mover (e Recentralizar), Borracha e Régua.
 * Importação personalizada de imagens: opções de recorte circular padrão e dimensionamento personalizado.
 * Gerenciamento de camadas: atribua e controle as camadas dos objetos para edição seletiva.
-* Login para gerenciar permissões e acesso. (Permissões customizadas ainda não estão em vigor)
+* Login para gerenciar permissões e acesso. 
 * Salvamento de sessões.
 * Interação simultânea entre usuários (ainda não está em vigor)
 
