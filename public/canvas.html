@@ -4,34 +4,34 @@
   <base href="/" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fabric.js Drawing App - Canvas</title>
+  <title>Teste</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <!-- Toolbar -->
   <div class="toolbar">
-    <button id="draw">Draw</button>
-    <button id="select">Select</button>
-    <button id="pan">Pan</button>
-    <button id="clear">Clear</button>
-    <button id="recenter">Recenter</button>
-    <button id="eraser">Eraser</button>
-    <button id="ruler">Ruler</button>
-    <button id="importStandardImage">Import Standard Image</button>
+    <button id="draw">Desenhar</button>
+    <button id="select">Selecionar</button>
+    <button id="pan">Mover-se</button>
+    <button id="clear">Limpar</button>
+    <button id="recenter">Recentralizar</button>
+    <button id="eraser">Borracha</button>
+    <button id="ruler">Régua</button>
+    <button id="importStandardImage">Importar Personagem</button>
     <input type="file" id="standardImageUpload" accept="image/*" style="display: none;" />
-    <button id="importCustomImage">Import Custom Image</button>
+    <button id="importCustomImage">Importar Imagem</button>
     <input type="file" id="customImageUpload" accept="image/*" style="display: none;" />
     <hr>
-    <label for="brushColor">Brush Color:</label>
+    <label for="brushColor">Cor do Pincel:</label>
     <input type="color" id="brushColor" value="#ff0000">
-    <label for="brushSizeRange">Brush Size:</label>
+    <label for="brushSizeRange">Tamanho do Pincel:</label>
     <input type="range" id="brushSizeRange" min="1" max="50" value="5">
-    <label for="layerValue" id="layerLabel">Layer Value:</label>
+    <label for="layerValue" id="layerLabel">Camada:</label>
     <input type="number" id="layerValue" value="0">
-    <label for="selectSameLayer" id="selectLabel">Select Same Layer Only</label>
+    <label for="selectSameLayer" id="selectLabel">Selecionar apenas na mesma camada</label>
     <input type="checkbox" id="selectSameLayer">
-    <label for="eraseSameLayer" id="eraseLabel">Erase Same Layer Only</label>
+    <label for="eraseSameLayer" id="eraseLabel">Apagar apenas na mesma camada</label>
     <input type="checkbox" id="eraseSameLayer">
     <div class="session-controls">
       <button id="saveSession"> <img src="img/save.png" width="20"></button>
@@ -46,16 +46,16 @@
   <!-- Modal for Custom Image Resizing -->
   <div id="imageSettingsModal" class="modal">
     <div class="modal-content">
-      <h3>Set Image Size</h3>
-      <button id="importOriginal">Import As Is</button>
+      <h3>Definir tamanho da Imagem</h3>
+      <button id="importOriginal">Importar como é</button>
       <p></p>
-      <label for="imageWidth">Width:</label>
+      <label for="imageWidth">Largura:</label>
       <input type="number" id="imageWidth" placeholder="Enter width" min="1" />
-      <label for="imageHeight">Height:</label>
+      <label for="imageHeight">Altura:</label>
       <input type="number" id="imageHeight" placeholder="Enter height" min="1" />
       <div class="modal-buttons">
-        <button id="confirmImageSize">Confirm</button>
-        <button id="cancelImageSize">Cancel</button>
+        <button id="confirmImageSize">Confirmar</button>
+        <button id="cancelImageSize">Cancelar</button>
       </div>
     </div>
   </div>

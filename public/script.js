@@ -45,7 +45,16 @@ document.addEventListener("DOMContentLoaded", function() {
   
     const layerInput = document.getElementById("layerValue");
     if (layerInput) layerInput.style.display = "none";
+
+    const layerLabel = document.getElementById("layerLabel");
+    if (layerLabel) layerLabel.style.display = "none";
+
+    const selectLabel = document.getElementById("selectLabel");
+    if (selectLabel) selectLabel.style.display = "none";
   
+    const eraseLabel = document.getElementById("eraseLabel");
+    if (eraseLabel) eraseLabel.style.display = "none";
+
     const selectSameLayer = document.getElementById("selectSameLayer");
     if (selectSameLayer) {
       selectSameLayer.style.display = "none";
