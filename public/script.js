@@ -19,74 +19,51 @@ let rulerPoints = []; // to store the two click coordinates
 // Global variable to hold the current session ID once loaded/created
 let currentSessionId = null;
 
-// Flag for guest user (non-moderator). 
-// Assumes login page stored permission in localStorage under "userPermissionVal" 
-// (e.g., "0" for moderator, "1" for guest)
-const userPermissionVal = localStorage.getItem("userPermissionVal") || "0"; // default to moderator if missing
+// Global flag for auto-save (enabled only for moderators)
+let autoSaveEnabled = true;
 
 // ====================
-// UI Adjustments for Guest Users
+// User Permission Configuration
 // ====================
-function configureUIForGuest() {
-  // Hide Save Session button
-  const saveBtn = document.getElementById("saveSession");
-  if (saveBtn) {
-    saveBtn.style.display = "none";
-  }
-  // Hide the layer input field
-  const layerInput = document.getElementById("layerValue");
-  if (layerInput) {
-    layerInput.style.display = "none";
-  }
-  // Hide the select same layer and erase same layer toggles,
-  // and force them to be checked and disabled
-  const selectSameLayer = document.getElementById("selectSameLayer");
-  const eraseSameLayer = document.getElementById("eraseSameLayer");
-  if (selectSameLayer) {
-    selectSameLayer.checked = true;
-    selectSameLayer.style.display = "none";
-    selectSameLayer.disabled = true;
-  }
-  if (eraseSameLayer) {
-    eraseSameLayer.checked = true;
-    eraseSameLayer.style.display = "none";
-    eraseSameLayer.disabled = true;
-  }
-  // Remove auto-save event listener if present
-  window.removeEventListener("beforeunload", autoSaveHandler);
+// Assume permissionVal is stored in localStorage after login
+let userPermissionVal = localStorage.getItem("permissionVal");
+if (userPermissionVal !== null) {
+  userPermissionVal = Number(userPermissionVal);
+} else {
+  // Default to moderator if not found
+  userPermissionVal = 0;
 }
 
-// ====================
-// Auto-Save Handler (Named for removal if guest)
-// ====================
-function autoSaveHandler(e) {
-  const canvasState = canvas.toJSON(['layer']);
-  const origin = window.location.origin;
-  
-  if (currentSessionId) {
-    // Update existing session with PUT
-    fetch(origin + '/game_sessions/' + currentSessionId, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: canvasState }),
-      keepalive: true
-    }).catch(error => console.error("Error auto-saving session:", error));
-  } else {
-    // Create new session with POST
-    fetch(origin + '/game_sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: canvasState }),
-      keepalive: true
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        currentSessionId = data.sessionId;
-      }
-    })
-    .catch(error => console.error("Error auto-saving session:", error));
+// If userPermissionVal is not 0, assume guest permissions.
+// Adjust the condition if your scheme is reversed.
+if (userPermissionVal !== 0) {
+  // Hide save button, layer input, and checkboxes for same-layer controls
+  const saveBtn = document.getElementById("saveSession");
+  if (saveBtn) saveBtn.style.display = "none";
+
+  const layerInput = document.getElementById("layerValue");
+  if (layerInput) layerInput.style.display = "none";
+
+  const selectSameLayer = document.getElementById("selectSameLayer");
+  if (selectSameLayer) {
+    selectSameLayer.style.display = "none";
+    // Force it to be active (checked)
+    selectSameLayer.checked = true;
   }
+
+  const eraseSameLayer = document.getElementById("eraseSameLayer");
+  if (eraseSameLayer) {
+    eraseSameLayer.style.display = "none";
+    // Force it to be active (checked)
+    eraseSameLayer.checked = true;
+  }
+
+  // Disable auto-save for guests
+  autoSaveEnabled = false;
+  console.log("Guest permissions detected; hiding certain controls and disabling auto-save.");
+} else {
+  autoSaveEnabled = true;
+  console.log("Moderator permissions detected; all controls are available and auto-save is enabled.");
 }
 
 // ====================
@@ -95,23 +72,15 @@ function autoSaveHandler(e) {
 window.addEventListener("load", function() {
   document.getElementById("brushColor").value = "#000";
   document.getElementById("brushSizeRange").value = "5";
-  document.getElementById("layerValue").value = "0"; // reset layer value to 0 on page load
+  if (document.getElementById("layerValue")) {
+    document.getElementById("layerValue").value = "0"; // reset layer value to 0 on page load
+  }
   
   // Extract sessionId from the URL (e.g., /game_sessions/2)
   const pathParts = window.location.pathname.split("/");
   const sessionId = pathParts[pathParts.length - 1];
   if (sessionId && sessionId !== "new") {
     loadCanvasSession(sessionId);
-  }
-
-  // If user is a guest (permissionVal != "0"), adjust the UI accordingly.
-  if (userPermissionVal !== "0") {
-    configureUIForGuest();
-  }
-
-  // For non-guests, enable auto-save on unload
-  if (userPermissionVal === "0") {
-    window.addEventListener("beforeunload", autoSaveHandler);
   }
 });
 
@@ -128,7 +97,7 @@ console.log("Canvas initialized. Dimensions:", canvas.width, canvas.height);
 console.log("Viewport transform set to:", canvas.viewportTransform);
 
 // ====================
-// Helper Functions (filterSelectionByLayer, isOverlapping, etc.)
+// Helper Functions
 // ====================
 function filterSelectionByLayer() {
   if (!document.getElementById("selectSameLayer").checked) return;
@@ -758,7 +727,39 @@ document.getElementById("saveSession").addEventListener("click", saveCanvasSessi
 // ====================
 // Auto-Save on Connection Lost (Before Unload)
 // ====================
-window.addEventListener("beforeunload", autoSaveHandler);
+if (autoSaveEnabled) {
+  window.addEventListener("beforeunload", function(e) {
+    const canvasState = canvas.toJSON(['layer']);
+    const origin = window.location.origin;
+    
+    if (currentSessionId) {
+      // Update existing session with PUT
+      fetch(origin + '/game_sessions/' + currentSessionId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: canvasState }),
+        keepalive: true
+      }).catch(error => console.error("Error auto-saving session:", error));
+    } else {
+      // Create new session with POST
+      fetch(origin + '/game_sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: canvasState }),
+        keepalive: true
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          currentSessionId = data.sessionId;
+        }
+      })
+      .catch(error => console.error("Error auto-saving session:", error));
+    }
+  });
+} else {
+  console.log("Auto-save is disabled for guest users.");
+}
 
 // ====================
 // Socket.IO for Real-Time Collaboration
