@@ -36,7 +36,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          localStorage.setItem("permissionval", data.user.permissionval);
+          localStorage.setItem("permissionval", data.user.permissionVal);
           // If a session ID was provided, redirect to that session;
           // otherwise, use "new" (the canvas page can decide to create a new session if needed).
           let targetSession = sessionId || 'new';
