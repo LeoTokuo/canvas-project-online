@@ -775,7 +775,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Socket.IO for Real-Time Collaboration
   // ====================
-  
+
   // Join the Socket.IO room corresponding to the sessionId
   const socket = io();
   socket.emit('joinRoom', sessionId);
@@ -789,28 +789,53 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 
-  // Example: Emitting canvas updates on object changes
-  canvas.on("object:added", function(e) {
-    // Prevent emitting if the object came from a socket update
-    if (!e.target._fromSocket) {
-      const canvasState = canvas.toJSON(['layer']);
-      socket.emit("canvas-update", { sessionId, data: canvasState });
-    }
-  });
+  socket.on('object:added', function(data) {
+  if(data.sessionId !== sessionId) return; // Only process if in the same session
 
-  canvas.on("object:modified", function(e) {
-    if (!e.target._fromSocket) {
-      const canvasState = canvas.toJSON(['layer']);
-      socket.emit("canvas-update", { sessionId, data: canvasState });
-    }
+  // Enliven the object (deserialize from JSON)
+  fabric.util.enlivenObjects([data.object], function(objects) {
+    objects.forEach(obj => {
+      // Mark the object so that adding it doesn't trigger a new emit
+      obj._fromSocket = true;
+      canvas.add(obj);
+    });
+    canvas.renderAll();
+    // Remove the flag after rendering
+    canvas.getObjects().forEach(obj => delete obj._fromSocket);
   });
+});
 
-  canvas.on("object:removed", function(e) {
-    if (!e.target._fromSocket) {
-      const canvasState = canvas.toJSON(['layer']);
-      socket.emit("canvas-update", { sessionId, data: canvasState });
-    }
-  });
+socket.on('object:modified', function(data) {
+  if(data.sessionId !== sessionId) return;
+  
+  // Find the object by its id (assuming each object has a unique "id" property)
+  const obj = canvas.getObjects().find(o => o.id === data.object.id);
+  if(obj) {
+    // Update properties. For a full update, you might remove and re-add.
+    // For simplicity, we remove and add:
+    obj._fromSocket = true;
+    canvas.remove(obj);
+    fabric.util.enlivenObjects([data.object], function(objects) {
+      objects.forEach(newObj => {
+        newObj._fromSocket = true;
+        canvas.add(newObj);
+      });
+      canvas.renderAll();
+      canvas.getObjects().forEach(o => delete o._fromSocket);
+    });
+  }
+});
+
+socket.on('object:removed', function(data) {
+  if(data.sessionId !== sessionId) return;
+  
+  // Remove the object with the given ID
+  const obj = canvas.getObjects().find(o => o.id === data.objectId);
+  if(obj) {
+    canvas.remove(obj);
+    canvas.renderAll();
+  }
+});
 
   // Make the socket available globally if needed:
   window.socket = socket;
