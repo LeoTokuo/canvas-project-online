@@ -74,12 +74,6 @@ pool.query('SELECT NOW()', (err, result) => {
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
-  // Allow default guest login.
-  if (username === "guest" && password === "guest") {
-    req.session.user = { id: "guest", name: "guest", permissionVal: 1 };
-    return res.json({ success: true, user: req.session.user });
-  }
-
   try {
     const result = await pool.query(
       'SELECT * FROM admaccounts WHERE name = $1 AND pass = $2 LIMIT 1',
