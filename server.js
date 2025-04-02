@@ -46,8 +46,10 @@ function isAuthenticated(req, res, next) {
   }
 }
 
+// Load the certificate file (make sure it is placed under /certificates)
 const caCert = fs.readFileSync(__dirname + '/certificates/prod-ca-2021.crt').toString();
 
+// Set up PostgreSQL connection pool using the DATABASE_URL from Supabase
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -55,7 +57,6 @@ const pool = new Pool({
     ca: caCert
   }
 });
-
 
 // Test the database connection
 pool.query('SELECT NOW()', (err, result) => {

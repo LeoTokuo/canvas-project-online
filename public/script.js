@@ -1,5 +1,3 @@
-console.log("Permission value stored:", localStorage.getItem("permissionVal"))
-console.log(typeof(localStorage.getItem("permissionVal")))
 document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Global Variables & Session ID Storage
@@ -778,13 +776,46 @@ document.addEventListener("DOMContentLoaded", function() {
   // Socket.IO for Real-Time Collaboration
   // ====================
   const socket = io();
-  socket.on('canvas-update', function(data) {
-    console.log("Canvas update received:", data);
+
+socket.on('canvas-update', function(data) {
+  console.log("Canvas update received:", data);
+  // To prevent feedback loops, mark incoming objects:
+  canvas.loadFromJSON(data, function() {
+    // Optionally mark objects so that remote updates don't trigger new events:
+    canvas.getObjects().forEach(obj => obj._fromSocket = true);
+    canvas.renderAll();
+    // Remove the temporary flag:
+    canvas.getObjects().forEach(obj => delete obj._fromSocket);
   });
-  socket.on('connect', function() {
-    console.log("Connected to socket server.");
-  });
-  socket.on('disconnect', function() {
-    console.log("Disconnected from socket server.");
-  });
+});
+
+socket.on('connect', function() {
+  console.log("Connected to socket server.");
+});
+
+socket.on('disconnect', function() {
+  console.log("Disconnected from socket server.");
+});
+
+// When your canvas changes, emit updates:
+// For example, emit on object:added, object:modified, or object:removed:
+canvas.on("object:added", function(e) {
+  if (!e.target._fromSocket) {
+    const canvasState = canvas.toJSON(['layer']);
+    socket.emit("canvas-update", canvasState);
+  }
+});
+canvas.on("object:modified", function(e) {
+  if (!e.target._fromSocket) {
+    const canvasState = canvas.toJSON(['layer']);
+    socket.emit("canvas-update", canvasState);
+  }
+});
+canvas.on("object:removed", function(e) {
+  if (!e.target._fromSocket) {
+    const canvasState = canvas.toJSON(['layer']);
+    socket.emit("canvas-update", canvasState);
+  }
+});
+
 });
