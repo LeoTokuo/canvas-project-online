@@ -1,4 +1,5 @@
 console.log("Permission value stored:", localStorage.getItem("permissionVal"))
+console.log(typeof(localStorage.getItem("permissionVal")))
 document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Global Variables & Session ID Storage
