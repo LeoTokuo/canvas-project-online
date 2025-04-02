@@ -29,15 +29,15 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Use the same key as set by login (ensure case consistency)
   let userPermissionVal = localStorage.getItem("permissionVal");
-  if (userPermissionVal !== null) {
+  if (userPermissionVal != 0) {
     userPermissionVal = Number(userPermissionVal);
   } else {
     // Default to moderator if not found
-    userPermissionVal = 0;
+    userPermissionVal = 1;
   }
   
   // If userPermissionVal is not 0, assume guest permissions.
-  if (userPermissionVal !== 0) {
+  if (userPermissionVal != 0) {
     // Hide save button, layer input, and same-layer checkboxes
     const saveBtn = document.getElementById("saveSession");
     if (saveBtn) saveBtn.style.display = "none";
