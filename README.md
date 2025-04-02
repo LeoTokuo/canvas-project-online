@@ -7,7 +7,7 @@ Conta com:
 * Gerenciamento de camadas: atribua e controle as camadas dos objetos para edição seletiva.
 * Login para gerenciar permissões e acesso. 
 * Salvamento de sessões.
-* Interação simultânea entre usuários (ainda não está em vigor)
+* Interação simultânea em tempo real entre usuários (ainda não está em vigor)
 
 Acesso por: https://canvas-project-online.onrender.com
 
