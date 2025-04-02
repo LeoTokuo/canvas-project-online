@@ -490,7 +490,7 @@ document.addEventListener("DOMContentLoaded", function() {
     lastDrawPoint = null;
     console.log("Stopped drawing/erasing.");
   });
-  
+
   // ====================
   // Object Selection & Constraints
   // ====================
@@ -775,7 +775,29 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Socket.IO for Real-Time Collaboration
   // ====================
-
+  
+  canvas.on("object:added", function(e) {
+    if (!e.target._fromSocket) {
+      if (!e.target.id) {
+        e.target.id = "obj-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+      }
+      const objData = e.target.toObject(['id', 'layer']);
+      socket.emit("object:added", { sessionId, object: objData });
+    }
+  });
+  
+  canvas.on("object:modified", function(e) {
+    if (!e.target._fromSocket) {
+      const objData = e.target.toObject(['id', 'layer']);
+      socket.emit("object:modified", { sessionId, object: objData });
+    }
+  });
+  
+  canvas.on("object:removed", function(e) {
+    if (!e.target._fromSocket) {
+      socket.emit("object:removed", { sessionId, objectId: e.target.id });
+    }
+  });
   // Join the Socket.IO room corresponding to the sessionId
   const socket = io();
   socket.emit('joinRoom', sessionId);
