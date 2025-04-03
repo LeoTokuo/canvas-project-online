@@ -7,8 +7,10 @@ Conta com:
 * Gerenciamento de camadas: atribua e controle as camadas dos objetos para edição seletiva.
 * Login para gerenciar permissões e acesso. 
 * Salvamento de sessões.
-* Interação simultânea em tempo real entre usuários (ainda não está em vigor)
+* Interação simultânea em tempo real entre usuários.
 
 Acesso por: https://canvas-project-online.onrender.com
 
 Pela razão de usar Render e Supabase, ambos nas suas versões grátis, há delay de acesso depois de períodos de inatividade.
+
+Erros conhecidos: ao tentar selectionar itens com diferentes valores de camada com a opção "Selecionar apenas na mesma camada" que estão se sobrepondo, apenas a intersecção é selecionada.
