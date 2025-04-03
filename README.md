@@ -13,4 +13,6 @@ Acesso por: https://canvas-project-online.onrender.com
 
 Pela razão de usar Render e Supabase, ambos nas suas versões grátis, há delay de acesso depois de períodos de inatividade.
 
+Se quiser executar e passar por todo o processo de ter um próprio, saiba que alguns arquivos necessários não aparecem no github por confidencialidade.
+
 Erros conhecidos: ao tentar selectionar itens com diferentes valores de camada com a opção "Selecionar apenas na mesma camada" que estão se sobrepondo, apenas a intersecção é selecionada.
