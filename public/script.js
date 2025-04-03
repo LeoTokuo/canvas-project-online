@@ -39,12 +39,10 @@ document.addEventListener("DOMContentLoaded", function() {
     const saveBtn = document.getElementById("saveSession");
     if (saveBtn) {
       saveBtn.style.display = "none";
-      console.log("Hiding save button (guest).");
     }
     const layerInput = document.getElementById("layerValue");
     if (layerInput) {
       layerInput.style.display = "none";
-      console.log("Hiding layer input (guest).");
     }
     const layerLabel = document.getElementById("layerLabel");
     if (layerLabel) {
@@ -62,13 +60,11 @@ document.addEventListener("DOMContentLoaded", function() {
     if (selectSameLayer) {
       selectSameLayer.style.display = "none";
       selectSameLayer.checked = true;
-      console.log("Hiding and forcing selectSameLayer (guest).");
     }
     const eraseSameLayer = document.getElementById("eraseSameLayer");
     if (eraseSameLayer) {
       eraseSameLayer.style.display = "none";
       eraseSameLayer.checked = true;
-      console.log("Hiding and forcing eraseSameLayer (guest).");
     }
     autoSaveEnabled = false;
     console.log("Auto-save disabled for guest.");
@@ -101,8 +97,6 @@ document.addEventListener("DOMContentLoaded", function() {
   });
   canvas.renderAll();
   canvas.setViewportTransform([1, 0, 0, 1, 1200, 2000]);
-  console.log("Canvas initialized. Dimensions:", canvas.width, canvas.height);
-  console.log("Viewport transform:", canvas.viewportTransform);
   
   // ====================
   // Helper Functions
@@ -193,7 +187,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     rulerStatus.innerText = "RULER: ACTIVE";
     rulerStatus.style.display = "block";
-    console.log("Ruler mode activated.");
+    console.log("RULER mode activated.");
   });
   
   document.getElementById("draw").addEventListener("click", () => {
@@ -239,7 +233,7 @@ document.addEventListener("DOMContentLoaded", function() {
       canvas.defaultCursor = "default";
       canvas.skipTargetFind = false;
       canvas.selection = true;
-      console.log("Eraser mode turned off. Switched to SELECT mode.");
+      console.log("ERASER mode turned off. Switched to SELECT mode.");
     }
   });
   
@@ -258,14 +252,13 @@ document.addEventListener("DOMContentLoaded", function() {
       canvas.defaultCursor = "default";
       canvas.skipTargetFind = false;
       canvas.selection = true;
-      console.log("Pan mode turned off. Switched to SELECT mode.");
+      console.log("PAN mode turned off. Switched to SELECT mode.");
     }
   });
   
   document.getElementById("recenter").addEventListener("click", () => {
     canvas.setViewportTransform([1, 0, 0, 1, 1200, 2000]);
     canvas.requestRenderAll();
-    console.log("Recentered viewport:", canvas.viewportTransform);
   });
   
   document.getElementById("clear").addEventListener("click", () => {
@@ -296,7 +289,6 @@ document.addEventListener("DOMContentLoaded", function() {
           let targetSize = 125;
           let scale = Math.max(targetSize / img.width, targetSize / img.height);
           let centerVisible = getVisibleCenter();
-          console.log("Standard image center:", centerVisible);
           img.set({
             left: centerVisible.x,
             top: centerVisible.y,
@@ -335,7 +327,6 @@ document.addEventListener("DOMContentLoaded", function() {
       reader.onload = function(event) {
         imageDataURL = event.target.result;
         document.getElementById("imageSettingsModal").style.display = "block";
-        console.log("Custom image loaded; showing modal.");
       };
       reader.readAsDataURL(file);
     }
@@ -351,7 +342,6 @@ document.addEventListener("DOMContentLoaded", function() {
     fabric.Image.fromURL(imageDataURL, function(img) {
       const scale = Math.min(width / img.width, height / img.height);
       let centerVisible = getVisibleCenter();
-      console.log("Custom image center:", centerVisible);
       img.set({
         left: centerVisible.x,
         top: centerVisible.y,
@@ -753,11 +743,9 @@ document.addEventListener("DOMContentLoaded", function() {
   // Socket.IO for Real-Time Collaboration
   // ====================
   const socket = io();
-  console.log("Socket.IO client initialized.");
   
   // Join the room for the current session
   socket.emit('joinRoom', sessionId);
-  console.log("Emitted joinRoom for session:", sessionId);
   
   // Emit delta events (object-level updates)
   canvas.on("object:added", function(e) {
@@ -766,7 +754,6 @@ document.addEventListener("DOMContentLoaded", function() {
         e.target.id = "obj-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
       }
       const objData = e.target.toObject(['id', 'layer']);
-      console.log("Emitting object:added:", objData);
       socket.emit("object:added", { sessionId, object: objData });
     }
   });
@@ -774,14 +761,12 @@ document.addEventListener("DOMContentLoaded", function() {
   canvas.on("object:modified", function(e) {
     if (!e.target._fromSocket) {
       const objData = e.target.toObject(['id', 'layer']);
-      console.log("Emitting object:modified:", objData);
       socket.emit("object:modified", { sessionId, object: objData });
     }
   });
   
   canvas.on("object:removed", function(e) {
     if (!e.target._fromSocket) {
-      console.log("Emitting object:removed for id:", e.target.id);
       socket.emit("object:removed", { sessionId, objectId: e.target.id });
     }
   });
@@ -789,7 +774,6 @@ document.addEventListener("DOMContentLoaded", function() {
   // Listen for delta updates from other clients:
   socket.on('object:added', function(data) {
     if (data.sessionId !== sessionId) return;
-    console.log("Received object:added:", data.object);
     let exists = canvas.getObjects().find(o => o.id === data.object.id);
     if (!exists) {
       fabric.util.enlivenObjects([data.object], function(objects) {
@@ -805,7 +789,6 @@ document.addEventListener("DOMContentLoaded", function() {
   
   socket.on('object:modified', function(data) {
     if (data.sessionId !== sessionId) return;
-    console.log("Received object:modified:", data.object);
     let obj = canvas.getObjects().find(o => o.id === data.object.id);
     if (obj) {
       obj._fromSocket = true;
@@ -823,7 +806,6 @@ document.addEventListener("DOMContentLoaded", function() {
   
   socket.on('object:removed', function(data) {
     if (data.sessionId !== sessionId) return;
-    console.log("Received object:removed for id:", data.objectId);
     let obj = canvas.getObjects().find(o => o.id === data.objectId);
     if (obj) {
       canvas.remove(obj);
