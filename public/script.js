@@ -26,51 +26,50 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // User Permission Configuration
   // ====================
-  // Use the same key as set by login (ensure case consistency)
+  // Read permission from localStorage (key must match what login stores, e.g. "permissionVal")
   let userPermissionVal = localStorage.getItem("permissionVal");
-  if (userPermissionVal == '0') {
-    userPermissionVal = Number(userPermissionVal);
+  console.log("User permission value from localStorage:", userPermissionVal);
+  if (userPermissionVal === "0") {
+    userPermissionVal = 0;
   } else {
-    // Default to moderator if not found
+    // For simplicity, assume nonzero means guest
     userPermissionVal = 1;
   }
   
-  // If userPermissionVal is not 0, assume guest permissions.
-  if (userPermissionVal == 1) {
-    // Hide save button, layer input, and same-layer checkboxes
+  // If user is guest (permissionVal == 1), hide controls and disable auto-save.
+  if (userPermissionVal === 1) {
     const saveBtn = document.getElementById("saveSession");
     if (saveBtn) saveBtn.style.display = "none";
   
     const layerInput = document.getElementById("layerValue");
     if (layerInput) layerInput.style.display = "none";
-
+  
     const layerLabel = document.getElementById("layerLabel");
     if (layerLabel) layerLabel.style.display = "none";
-
+  
     const selectLabel = document.getElementById("selectLabel");
     if (selectLabel) selectLabel.style.display = "none";
   
     const eraseLabel = document.getElementById("eraseLabel");
     if (eraseLabel) eraseLabel.style.display = "none";
-
+  
     const selectSameLayer = document.getElementById("selectSameLayer");
     if (selectSameLayer) {
       selectSameLayer.style.display = "none";
-      selectSameLayer.checked = true; // force checked
+      selectSameLayer.checked = true;
     }
   
     const eraseSameLayer = document.getElementById("eraseSameLayer");
     if (eraseSameLayer) {
       eraseSameLayer.style.display = "none";
-      eraseSameLayer.checked = true; // force checked
+      eraseSameLayer.checked = true;
     }
   
-    // Disable auto-save for guests
     autoSaveEnabled = false;
-    console.log("Guest permissions detected; certain controls are hidden and auto-save is disabled.");
+    console.log("Guest permissions detected; controls hidden and auto-save disabled.");
   } else {
     autoSaveEnabled = true;
-    console.log("Moderator permissions detected; all controls are available and auto-save is enabled.");
+    console.log("Moderator permissions detected; all controls enabled.");
   }
   
   // ====================
@@ -79,24 +78,25 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("brushColor").value = "#000";
   document.getElementById("brushSizeRange").value = "5";
   if (document.getElementById("layerValue")) {
-    document.getElementById("layerValue").value = "0"; // reset layer value on page load
+    document.getElementById("layerValue").value = "0";
   }
   
   // Extract sessionId from the URL (e.g., /game_sessions/2)
   const pathParts = window.location.pathname.split("/");
   const sessionId = pathParts[pathParts.length - 1];
+  // On initial load, if session exists, load full state.
   if (sessionId && sessionId !== "new") {
     loadCanvasSession(sessionId);
   }
   
-  // Initialize Fabric.js canvas with performance tweaks:
+  // Initialize Fabric.js canvas
   const canvas = new fabric.Canvas("canvas", {
     enableRetinaScaling: false,
     renderOnAddRemove: false
   });
   canvas.renderAll();
   
-  // Shift the coordinate system so that the drawable area is from (-3000, -3000) to (0,0)
+  // Shift the coordinate system (your preset)
   canvas.setViewportTransform([1, 0, 0, 1, 1200, 2000]);
   console.log("Canvas initialized. Dimensions:", canvas.width, canvas.height);
   console.log("Viewport transform set to:", canvas.viewportTransform);
@@ -292,6 +292,7 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("importStandardImage").addEventListener("click", () => {
     document.getElementById("standardImageUpload").click();
   });
+  
   document.getElementById("standardImageUpload").addEventListener("change", function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -332,6 +333,7 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("importCustomImage").addEventListener("click", function() {
     document.getElementById("customImageUpload").click();
   });
+  
   document.getElementById("customImageUpload").addEventListener("change", function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -490,7 +492,7 @@ document.addEventListener("DOMContentLoaded", function() {
     lastDrawPoint = null;
     console.log("Stopped drawing/erasing.");
   });
-
+  
   // ====================
   // Object Selection & Constraints
   // ====================
@@ -625,6 +627,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
   
   function updateLayerOrder() {
+    let objs = canvas.getObjects();
     objs.sort((a, b) => ((a.layer || 0) - (b.layer || 0)));
     objs.forEach((obj, index) => {
       canvas.moveTo(obj, index + 1);
@@ -656,7 +659,6 @@ document.addEventListener("DOMContentLoaded", function() {
   // Session Save/Load Functions (Integration with Express endpoints)
   // ====================
   
-  // New API endpoint for loading session data uses /api/game_sessions/:sessionId
   function loadCanvasSession(sessionId) {
     const origin = window.location.origin;
     const url = origin + '/api/game_sessions/' + sessionId;
@@ -665,7 +667,8 @@ document.addEventListener("DOMContentLoaded", function() {
       .then(data => {
         if (data.success && data.session) {
           console.log("Loaded session data:", data.session);
-          canvas.loadFromJSON(data.session.data, () => {
+          // Load the full state once on initial load.
+          canvas.loadFromJSON(data.session.data, function() {
             canvas.renderAll();
             currentSessionId = sessionId;
             console.log("Session loaded. currentSessionId is set to:", currentSessionId);
@@ -680,13 +683,11 @@ document.addEventListener("DOMContentLoaded", function() {
       });
   }
   
-  // Save or update the current session.
   function saveCanvasSession() {
     const canvasState = canvas.toJSON(['layer']);
     const origin = window.location.origin;
     
     if (currentSessionId) {
-      // Update existing session with PUT
       fetch(origin + '/game_sessions/' + currentSessionId, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -707,7 +708,6 @@ document.addEventListener("DOMContentLoaded", function() {
         alert("Error updating session. See console for details.");
       });
     } else {
-      // Create new session with POST
       fetch(origin + '/game_sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -729,22 +729,17 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
   
-  // Bind Session Functions to UI Elements
   const saveSessionBtn = document.getElementById("saveSession");
   if (saveSessionBtn) {
     saveSessionBtn.addEventListener("click", saveCanvasSession);
   }
   
-  // ====================
-  // Auto-Save on Connection Lost (Before Unload)
-  // ====================
   if (autoSaveEnabled) {
     window.addEventListener("beforeunload", function(e) {
       const canvasState = canvas.toJSON(['layer']);
       const origin = window.location.origin;
       
       if (currentSessionId) {
-        // Update existing session with PUT
         fetch(origin + '/game_sessions/' + currentSessionId, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -752,7 +747,6 @@ document.addEventListener("DOMContentLoaded", function() {
           keepalive: true
         }).catch(error => console.error("Error auto-saving session:", error));
       } else {
-        // Create new session with POST
         fetch(origin + '/game_sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -775,7 +769,12 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Socket.IO for Real-Time Collaboration
   // ====================
+  const socket = io();
   
+  // Join the room based on sessionId so that only updates from this session are received.
+  socket.emit('joinRoom', sessionId);
+  
+  // Emit delta events instead of full-state updates:
   canvas.on("object:added", function(e) {
     if (!e.target._fromSocket) {
       if (!e.target.id) {
@@ -798,68 +797,51 @@ document.addEventListener("DOMContentLoaded", function() {
       socket.emit("object:removed", { sessionId, objectId: e.target.id });
     }
   });
-  // Join the Socket.IO room corresponding to the sessionId
-  const socket = io();
-  socket.emit('joinRoom', sessionId);
   
-  // Listen for canvas updates from others
-  socket.on('canvas-update', function(data) {
-    console.log("Canvas update received:", data);
-    // Apply the update (for example, reload the canvas state)
-    canvas.loadFromJSON(data, function() {
-      canvas.renderAll();
-    });
-  });
-
+  // Listen for delta updates from other clients:
   socket.on('object:added', function(data) {
-  if(data.sessionId !== sessionId) return; // Only process if in the same session
-
-  // Enliven the object (deserialize from JSON)
-  fabric.util.enlivenObjects([data.object], function(objects) {
-    objects.forEach(obj => {
-      // Mark the object so that adding it doesn't trigger a new emit
-      obj._fromSocket = true;
-      canvas.add(obj);
-    });
-    canvas.renderAll();
-    // Remove the flag after rendering
-    canvas.getObjects().forEach(obj => delete obj._fromSocket);
-  });
-});
-
-socket.on('object:modified', function(data) {
-  if(data.sessionId !== sessionId) return;
-  
-  // Find the object by its id (assuming each object has a unique "id" property)
-  const obj = canvas.getObjects().find(o => o.id === data.object.id);
-  if(obj) {
-    // Update properties. For a full update, you might remove and re-add.
-    // For simplicity, we remove and add:
-    obj._fromSocket = true;
-    canvas.remove(obj);
-    fabric.util.enlivenObjects([data.object], function(objects) {
-      objects.forEach(newObj => {
-        newObj._fromSocket = true;
-        canvas.add(newObj);
+    if (data.sessionId !== sessionId) return;
+    // Check if object already exists
+    let exists = canvas.getObjects().find(o => o.id === data.object.id);
+    if (!exists) {
+      fabric.util.enlivenObjects([data.object], function(objects) {
+        objects.forEach(obj => {
+          obj._fromSocket = true;
+          canvas.add(obj);
+        });
+        canvas.renderAll();
+        canvas.getObjects().forEach(obj => delete obj._fromSocket);
       });
-      canvas.renderAll();
-      canvas.getObjects().forEach(o => delete o._fromSocket);
-    });
-  }
-});
-
-socket.on('object:removed', function(data) {
-  if(data.sessionId !== sessionId) return;
+    }
+  });
   
-  // Remove the object with the given ID
-  const obj = canvas.getObjects().find(o => o.id === data.objectId);
-  if(obj) {
-    canvas.remove(obj);
-    canvas.renderAll();
-  }
-});
-
-  // Make the socket available globally if needed:
+  socket.on('object:modified', function(data) {
+    if (data.sessionId !== sessionId) return;
+    let obj = canvas.getObjects().find(o => o.id === data.object.id);
+    if (obj) {
+      // Update the object properties (for simplicity, remove and re-add)
+      obj._fromSocket = true;
+      canvas.remove(obj);
+      fabric.util.enlivenObjects([data.object], function(objects) {
+        objects.forEach(newObj => {
+          newObj._fromSocket = true;
+          canvas.add(newObj);
+        });
+        canvas.renderAll();
+        canvas.getObjects().forEach(o => delete o._fromSocket);
+      });
+    }
+  });
+  
+  socket.on('object:removed', function(data) {
+    if (data.sessionId !== sessionId) return;
+    let obj = canvas.getObjects().find(o => o.id === data.objectId);
+    if (obj) {
+      canvas.remove(obj);
+      canvas.renderAll();
+    }
+  });
+  
+  // Make the socket available globally if needed.
   window.socket = socket;
-
 });
