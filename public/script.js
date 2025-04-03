@@ -666,7 +666,7 @@ document.addEventListener("DOMContentLoaded", function() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: canvasState }),
-        keepalive: true
+        keepalive: false
       })
       .then(response => response.json())
       .then(data => {
@@ -717,14 +717,14 @@ document.addEventListener("DOMContentLoaded", function() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ data: canvasState }),
-          keepalive: true
+          keepalive: false
         }).catch(error => console.error("Error auto-saving session:", error));
       } else {
         fetch(origin + '/game_sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ data: canvasState }),
-          keepalive: true
+          keepalive: false
         })
         .then(response => response.json())
         .then(data => {
