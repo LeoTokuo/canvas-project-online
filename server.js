@@ -198,7 +198,17 @@ io.on('connection', (socket) => {
     socket.join(sessionId);
     console.log(`Socket ${socket.id} joined room ${sessionId}`);
   });
-
+  
+  socket.on('object:added', (data) => {
+    socket.to(data.sessionId).emit('object:added', data);
+  });
+  socket.on('object:modified', (data) => {
+    socket.to(data.sessionId).emit('object:modified', data);
+  });
+  socket.on('object:removed', (data) => {
+    socket.to(data.sessionId).emit('object:removed', data);
+  });
+  
   // Listen for canvas-update events
   socket.on('canvas-update', (data) => {
     // Assume data contains a property "sessionId"

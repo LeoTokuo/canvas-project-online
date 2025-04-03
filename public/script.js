@@ -10,14 +10,14 @@ document.addEventListener("DOMContentLoaded", function() {
   let renderPending = false;
   let eraserMode = false;       // tracks eraser toggle state
   let isErasing = false;
-  // Brush settings (for our custom segmented drawing)
+  // Brush settings
   let brushSize = 5;
   let brushColor = "#000";
-  // For segmented drawing, we track the last pointer position:
+  // For segmented drawing, track last pointer position:
   let isDrawing = false;
   let lastDrawPoint = null;
-  let rulerPoints = []; // to store the two click coordinates
-  // Global variable to hold the current session ID once loaded/created
+  let rulerPoints = []; // to store two click coordinates
+  // Global variable for current session ID
   let currentSessionId = null;
   
   // Global flag for auto-save (enabled only for moderators)
@@ -26,50 +26,55 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // User Permission Configuration
   // ====================
-  // Read permission from localStorage (key must match what login stores, e.g. "permissionVal")
   let userPermissionVal = localStorage.getItem("permissionVal");
   console.log("User permission value from localStorage:", userPermissionVal);
   if (userPermissionVal === "0") {
     userPermissionVal = 0;
   } else {
-    // For simplicity, assume nonzero means guest
     userPermissionVal = 1;
   }
   
-  // If user is guest (permissionVal == 1), hide controls and disable auto-save.
   if (userPermissionVal === 1) {
+    // Guest permissions: hide controls and disable auto-save
     const saveBtn = document.getElementById("saveSession");
-    if (saveBtn) saveBtn.style.display = "none";
-  
+    if (saveBtn) {
+      saveBtn.style.display = "none";
+      console.log("Hiding save button (guest).");
+    }
     const layerInput = document.getElementById("layerValue");
-    if (layerInput) layerInput.style.display = "none";
-  
+    if (layerInput) {
+      layerInput.style.display = "none";
+      console.log("Hiding layer input (guest).");
+    }
     const layerLabel = document.getElementById("layerLabel");
-    if (layerLabel) layerLabel.style.display = "none";
-  
+    if (layerLabel) {
+      layerLabel.style.display = "none";
+    }
     const selectLabel = document.getElementById("selectLabel");
-    if (selectLabel) selectLabel.style.display = "none";
-  
+    if (selectLabel) {
+      selectLabel.style.display = "none";
+    }
     const eraseLabel = document.getElementById("eraseLabel");
-    if (eraseLabel) eraseLabel.style.display = "none";
-  
+    if (eraseLabel) {
+      eraseLabel.style.display = "none";
+    }
     const selectSameLayer = document.getElementById("selectSameLayer");
     if (selectSameLayer) {
       selectSameLayer.style.display = "none";
       selectSameLayer.checked = true;
+      console.log("Hiding and forcing selectSameLayer (guest).");
     }
-  
     const eraseSameLayer = document.getElementById("eraseSameLayer");
     if (eraseSameLayer) {
       eraseSameLayer.style.display = "none";
       eraseSameLayer.checked = true;
+      console.log("Hiding and forcing eraseSameLayer (guest).");
     }
-  
     autoSaveEnabled = false;
-    console.log("Guest permissions detected; controls hidden and auto-save disabled.");
+    console.log("Auto-save disabled for guest.");
   } else {
     autoSaveEnabled = true;
-    console.log("Moderator permissions detected; all controls enabled.");
+    console.log("Moderator permissions: all controls enabled.");
   }
   
   // ====================
@@ -81,10 +86,10 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("layerValue").value = "0";
   }
   
-  // Extract sessionId from the URL (e.g., /game_sessions/2)
+  // Extract sessionId from URL (e.g., /game_sessions/2)
   const pathParts = window.location.pathname.split("/");
   const sessionId = pathParts[pathParts.length - 1];
-  // On initial load, if session exists, load full state.
+  console.log("Session ID from URL:", sessionId);
   if (sessionId && sessionId !== "new") {
     loadCanvasSession(sessionId);
   }
@@ -95,11 +100,9 @@ document.addEventListener("DOMContentLoaded", function() {
     renderOnAddRemove: false
   });
   canvas.renderAll();
-  
-  // Shift the coordinate system (your preset)
   canvas.setViewportTransform([1, 0, 0, 1, 1200, 2000]);
   console.log("Canvas initialized. Dimensions:", canvas.width, canvas.height);
-  console.log("Viewport transform set to:", canvas.viewportTransform);
+  console.log("Viewport transform:", canvas.viewportTransform);
   
   // ====================
   // Helper Functions
@@ -111,9 +114,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const filtered = activeObjs.filter(obj => Number(obj.layer || 0) === currentLayer);
     const overlapping = canvas.getObjects().filter(obj => {
       if (Number(obj.layer || 0) !== currentLayer) return false;
-      return canvas.getObjects().some(other => 
-        Number(other.layer || 0) !== currentLayer && isOverlapping(obj, other)
-      );
+      return canvas.getObjects().some(other => Number(other.layer || 0) !== currentLayer && isOverlapping(obj, other));
     });
     const finalSelection = [...new Set([...filtered, ...overlapping])];
     if (finalSelection.length === activeObjs.length) return;
@@ -130,10 +131,7 @@ document.addEventListener("DOMContentLoaded", function() {
   function isOverlapping(objA, objB) {
     const a = objA.getBoundingRect();
     const b = objB.getBoundingRect();
-    return !(a.left > b.left + b.width || 
-             a.left + a.width < b.left || 
-             a.top > b.top + b.height || 
-             a.top + a.height < b.top);
+    return !(a.left > b.left + b.width || a.left + a.width < b.left || a.top > b.top + b.height || a.top + a.height < b.top);
   }
   
   canvas.on("selection:created", () => setTimeout(filterSelectionByLayer, 0));
@@ -158,30 +156,28 @@ document.addEventListener("DOMContentLoaded", function() {
     const target = canvas.findTarget(e.e, true);
     if (target) {
       const eraseSameLayer = document.getElementById("eraseSameLayer").checked;
-      if (eraseSameLayer) {
-        const currentLayer = Number(document.getElementById("layerValue").value) || 0;
-        const targetLayer = Number(target.layer || 0);
-        if (targetLayer === currentLayer) {
-          canvas.remove(target);
-          canvas.requestRenderAll();
-          console.log("Erased object at:", pointer.x, pointer.y, "with layer:", targetLayer);
-        } else {
-          console.log("Skipped erasing object at:", pointer.x, pointer.y, "because target layer", targetLayer, "≠ current layer", currentLayer);
-        }
-      } else {
+      const currentLayer = Number(document.getElementById("layerValue").value) || 0;
+      const targetLayer = Number(target.layer || 0);
+      if (eraseSameLayer && targetLayer === currentLayer) {
+        canvas.remove(target);
+        canvas.requestRenderAll();
+        console.log("Erased object at:", pointer.x, pointer.y, "with layer:", targetLayer);
+      } else if (!eraseSameLayer) {
         canvas.remove(target);
         canvas.requestRenderAll();
         console.log("Erased object at:", pointer.x, pointer.y, "without layer check");
+      } else {
+        console.log("Skipped erasing: target layer", targetLayer, "≠ current layer", currentLayer);
       }
     }
   }
   
   // ====================
-  // Mode Buttons & Canvas Tools
+  // Mode Buttons & Tools
   // ====================
   document.getElementById("ruler").addEventListener("click", function() {
     currentMode = "ruler";
-    rulerPoints = []; // clear any previous clicks
+    rulerPoints = [];
     let rulerStatus = document.getElementById("rulerStatus");
     if (!rulerStatus) {
       rulerStatus = document.createElement("div");
@@ -202,10 +198,10 @@ document.addEventListener("DOMContentLoaded", function() {
   
   document.getElementById("draw").addEventListener("click", () => {
     panMode = false;
-    eraserMode = false; 
+    eraserMode = false;
     updateToggleButtons("draw");
     currentMode = "draw";
-    canvas.isDrawingMode = false; 
+    canvas.isDrawingMode = false;
     canvas.defaultCursor = "crosshair";
     canvas.skipTargetFind = true;
     canvas.selection = false;
@@ -269,24 +265,22 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("recenter").addEventListener("click", () => {
     canvas.setViewportTransform([1, 0, 0, 1, 1200, 2000]);
     canvas.requestRenderAll();
-    console.log("Recentered viewport to:", canvas.viewportTransform);
+    console.log("Recentered viewport:", canvas.viewportTransform);
   });
   
   document.getElementById("clear").addEventListener("click", () => {
     canvas.clear();
     canvas.renderAll();
-    console.log("Canvas cleared and boundary restored.");
+    console.log("Canvas cleared.");
   });
   
   // ====================
-  // Standardized Image Import & Custom Image Import (Unchanged)
+  // Image Import Functions
   // ====================
   function getVisibleCenter() {
     const zoom = canvas.getZoom();
     const vpt = canvas.viewportTransform || fabric.iMatrix;
-    const centerX = (canvas.width / 4.2 - vpt[4]) / zoom;
-    const centerY = (canvas.height / 2 - vpt[5]) / zoom;
-    return { x: centerX, y: centerY };
+    return { x: (canvas.width / 4.2 - vpt[4]) / zoom, y: (canvas.height / 2 - vpt[5]) / zoom };
   }
   
   document.getElementById("importStandardImage").addEventListener("click", () => {
@@ -302,7 +296,7 @@ document.addEventListener("DOMContentLoaded", function() {
           let targetSize = 125;
           let scale = Math.max(targetSize / img.width, targetSize / img.height);
           let centerVisible = getVisibleCenter();
-          console.log("Corrected Visible Center:", centerVisible);
+          console.log("Standard image center:", centerVisible);
           img.set({
             left: centerVisible.x,
             top: centerVisible.y,
@@ -323,7 +317,7 @@ document.addEventListener("DOMContentLoaded", function() {
           canvas.add(img);
           updateLayerOrder();
           canvas.requestRenderAll();
-          console.log("Standard image added at:", img.left, img.top);
+          console.log("Standard image added.");
         });
       };
       reader.readAsDataURL(file);
@@ -346,7 +340,7 @@ document.addEventListener("DOMContentLoaded", function() {
       reader.readAsDataURL(file);
     }
   });
-    
+  
   document.getElementById("confirmImageSize").addEventListener("click", function() {
     const width = parseInt(document.getElementById("imageWidth").value);
     const height = parseInt(document.getElementById("imageHeight").value);
@@ -355,12 +349,9 @@ document.addEventListener("DOMContentLoaded", function() {
       return;
     }
     fabric.Image.fromURL(imageDataURL, function(img) {
-      const scaleX = width / img.width;
-      const scaleY = height / img.height;
-      const scale = Math.min(scaleX, scaleY);
-      console.log("Custom scale computed:", scale);
+      const scale = Math.min(width / img.width, height / img.height);
       let centerVisible = getVisibleCenter();
-      console.log("Custom image center computed:", centerVisible);
+      console.log("Custom image center:", centerVisible);
       img.set({
         left: centerVisible.x,
         top: centerVisible.y,
@@ -373,11 +364,11 @@ document.addEventListener("DOMContentLoaded", function() {
       canvas.add(img);
       updateLayerOrder();
       canvas.requestRenderAll();
-      console.log("Custom image added at:", img.left, img.top);
+      console.log("Custom image added.");
     });
     document.getElementById("imageSettingsModal").style.display = "none";
   });
-    
+  
   document.getElementById("importOriginal").addEventListener("click", function() {
     fabric.Image.fromURL(imageDataURL, function(img) {
       let centerVisible = getVisibleCenter();
@@ -391,11 +382,11 @@ document.addEventListener("DOMContentLoaded", function() {
       canvas.add(img);
       updateLayerOrder();
       canvas.requestRenderAll();
-      console.log("Original custom image added at:", img.left, img.top);
+      console.log("Original image added.");
     });
     document.getElementById("imageSettingsModal").style.display = "none";
   });
-    
+  
   document.getElementById("cancelImageSize").addEventListener("click", function() {
     document.getElementById("imageSettingsModal").style.display = "none";
     console.log("Image import canceled.");
@@ -408,6 +399,7 @@ document.addEventListener("DOMContentLoaded", function() {
     brushColor = e.target.value;
     console.log("Brush color set to:", brushColor);
   });
+  
   document.getElementById("brushSizeRange").addEventListener("input", function(e) {
     brushSize = parseInt(e.target.value, 10);
     console.log("Brush size set to:", brushSize);
@@ -465,8 +457,7 @@ document.addEventListener("DOMContentLoaded", function() {
       let dx = pointer.x - lastDrawPoint.x;
       let dy = pointer.y - lastDrawPoint.y;
       let distance = Math.sqrt(dx * dx + dy * dy);
-      let threshold = brushSize;
-      if (distance >= threshold) {
+      if (distance >= brushSize) {
         let line = new fabric.Line(
           [lastDrawPoint.x, lastDrawPoint.y, pointer.x, pointer.y],
           {
@@ -605,12 +596,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
   
   document.addEventListener("keydown", function(e) {
-    if (
-      e.key === "Delete" ||
-      e.key === "Backspace" ||
-      e.keyCode === 46 ||
-      e.keyCode === 8
-    ) {
+    if (e.key === "Delete" || e.key === "Backspace" || e.keyCode === 46 || e.keyCode === 8) {
       e.preventDefault();
       let activeObjects = canvas.getActiveObjects();
       if (activeObjects && activeObjects.length > 0) {
@@ -633,7 +619,7 @@ document.addEventListener("DOMContentLoaded", function() {
       canvas.moveTo(obj, index + 1);
     });
     canvas.requestRenderAll();
-    console.log("Updated layer order based on custom layer values.");
+    console.log("Updated layer order.");
   }
   
   function checkSelectionLayer() {
@@ -656,9 +642,8 @@ document.addEventListener("DOMContentLoaded", function() {
   canvas.on("selection:updated", function(e) { checkSelectionLayer(); });
   
   // ====================
-  // Session Save/Load Functions (Integration with Express endpoints)
+  // Session Save/Load Functions
   // ====================
-  
   function loadCanvasSession(sessionId) {
     const origin = window.location.origin;
     const url = origin + '/api/game_sessions/' + sessionId;
@@ -667,18 +652,18 @@ document.addEventListener("DOMContentLoaded", function() {
       .then(data => {
         if (data.success && data.session) {
           console.log("Loaded session data:", data.session);
-          // Load the full state once on initial load.
+          // Load the full canvas state once on initial load
           canvas.loadFromJSON(data.session.data, function() {
             canvas.renderAll();
             currentSessionId = sessionId;
-            console.log("Session loaded. currentSessionId is set to:", currentSessionId);
+            console.log("Session loaded. currentSessionId:", currentSessionId);
           });
         } else {
           alert("Session not found.");
         }
       })
-      .catch(error => { 
-        console.error("Error loading session:", error); 
+      .catch(error => {
+        console.error("Error loading session:", error);
         alert("Error loading session. Check console for details.");
       });
   }
@@ -686,7 +671,6 @@ document.addEventListener("DOMContentLoaded", function() {
   function saveCanvasSession() {
     const canvasState = canvas.toJSON(['layer']);
     const origin = window.location.origin;
-    
     if (currentSessionId) {
       fetch(origin + '/game_sessions/' + currentSessionId, {
         method: 'PUT',
@@ -738,7 +722,6 @@ document.addEventListener("DOMContentLoaded", function() {
     window.addEventListener("beforeunload", function(e) {
       const canvasState = canvas.toJSON(['layer']);
       const origin = window.location.origin;
-      
       if (currentSessionId) {
         fetch(origin + '/game_sessions/' + currentSessionId, {
           method: 'PUT',
@@ -770,17 +753,20 @@ document.addEventListener("DOMContentLoaded", function() {
   // Socket.IO for Real-Time Collaboration
   // ====================
   const socket = io();
+  console.log("Socket.IO client initialized.");
   
-  // Join the room based on sessionId so that only updates from this session are received.
+  // Join the room for the current session
   socket.emit('joinRoom', sessionId);
+  console.log("Emitted joinRoom for session:", sessionId);
   
-  // Emit delta events instead of full-state updates:
+  // Emit delta events (object-level updates)
   canvas.on("object:added", function(e) {
     if (!e.target._fromSocket) {
       if (!e.target.id) {
         e.target.id = "obj-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
       }
       const objData = e.target.toObject(['id', 'layer']);
+      console.log("Emitting object:added:", objData);
       socket.emit("object:added", { sessionId, object: objData });
     }
   });
@@ -788,12 +774,14 @@ document.addEventListener("DOMContentLoaded", function() {
   canvas.on("object:modified", function(e) {
     if (!e.target._fromSocket) {
       const objData = e.target.toObject(['id', 'layer']);
+      console.log("Emitting object:modified:", objData);
       socket.emit("object:modified", { sessionId, object: objData });
     }
   });
   
   canvas.on("object:removed", function(e) {
     if (!e.target._fromSocket) {
+      console.log("Emitting object:removed for id:", e.target.id);
       socket.emit("object:removed", { sessionId, objectId: e.target.id });
     }
   });
@@ -801,7 +789,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // Listen for delta updates from other clients:
   socket.on('object:added', function(data) {
     if (data.sessionId !== sessionId) return;
-    // Check if object already exists
+    console.log("Received object:added:", data.object);
     let exists = canvas.getObjects().find(o => o.id === data.object.id);
     if (!exists) {
       fabric.util.enlivenObjects([data.object], function(objects) {
@@ -817,9 +805,9 @@ document.addEventListener("DOMContentLoaded", function() {
   
   socket.on('object:modified', function(data) {
     if (data.sessionId !== sessionId) return;
+    console.log("Received object:modified:", data.object);
     let obj = canvas.getObjects().find(o => o.id === data.object.id);
     if (obj) {
-      // Update the object properties (for simplicity, remove and re-add)
       obj._fromSocket = true;
       canvas.remove(obj);
       fabric.util.enlivenObjects([data.object], function(objects) {
@@ -835,6 +823,7 @@ document.addEventListener("DOMContentLoaded", function() {
   
   socket.on('object:removed', function(data) {
     if (data.sessionId !== sessionId) return;
+    console.log("Received object:removed for id:", data.objectId);
     let obj = canvas.getObjects().find(o => o.id === data.objectId);
     if (obj) {
       canvas.remove(obj);
@@ -842,6 +831,5 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
   
-  // Make the socket available globally if needed.
   window.socket = socket;
 });
