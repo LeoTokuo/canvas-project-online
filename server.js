@@ -25,7 +25,7 @@ app.use(
 );
 
 // Middleware for JSON parsing
-app.use(express.json());
+app.use(express.json({ limit: '1024mb' }));
 // Serve static files from /public
 app.use(express.static(__dirname + '/public'));
 app.use("/favicon.ico", express.static("public/favicon.ico"));
