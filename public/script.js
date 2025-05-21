@@ -36,36 +36,20 @@ document.addEventListener("DOMContentLoaded", function() {
   
   if (userPermissionVal === 1) {
     // Guest permissions: hide controls and disable auto-save
-    const saveBtn = document.getElementById("saveSession");
-    if (saveBtn) {
-      saveBtn.style.display = "none";
-    }
-    const layerInput = document.getElementById("layerValue");
-    if (layerInput) {
-      layerInput.style.display = "none";
-    }
-    const layerLabel = document.getElementById("layerLabel");
-    if (layerLabel) {
-      layerLabel.style.display = "none";
-    }
-    const selectLabel = document.getElementById("selectLabel");
-    if (selectLabel) {
-      selectLabel.style.display = "none";
-    }
-    const eraseLabel = document.getElementById("eraseLabel");
-    if (eraseLabel) {
-      eraseLabel.style.display = "none";
-    }
-    const selectSameLayer = document.getElementById("selectSameLayer");
-    if (selectSameLayer) {
-      selectSameLayer.style.display = "none";
-      selectSameLayer.checked = true;
-    }
-    const eraseSameLayer = document.getElementById("eraseSameLayer");
-    if (eraseSameLayer) {
-      eraseSameLayer.style.display = "none";
-      eraseSameLayer.checked = true;
-    }
+    function hideElement(id, setChecked = null) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = "none";
+    if (setChecked !== null) el.checked = setChecked;
+  }
+}
+
+// Hide elements
+["saveSession", "layerValue", "layerLabel", "selectLabel", "eraseLabel"].forEach(hideElement);
+
+// Hide and check checkboxes
+hideElement("selectSameLayer", true);
+hideElement("eraseSameLayer", true);
     autoSaveEnabled = false;
     console.log("Auto-save disabled for guest.");
   } else {
