@@ -19,7 +19,7 @@ app.use(
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-      imgSrc: ["'self'", "http://localhost:" + process.env.PORT, "data:"]
+      imgSrc: ["'self'", `http://localhost:${process.env.PORT}`, "data:"]
     }
   })
 );
@@ -28,9 +28,9 @@ app.use(
 app.use(express.json({ limit: '1024mb' }));
 // Serve static files from /public
 app.use(express.static(__dirname + '/public'));
-app.use("/favicon.ico", express.static("public/favicon.ico"));
+app.use('/favicon.ico', express.static('public/favicon.ico'));
 
-// Configure express-session using environment variable for secret
+// Configure express-session
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -44,27 +44,21 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: true, ca: caCert }
 });
 
-// Test the database connection
+// Test DB connection
 pool.query('SELECT NOW()', (err, result) => {
-  if (err) {
-    console.error('Database Connection Failed!', err);
-  } else {
-    console.log('Connected to PostgreSQL:', result.rows[0]);
-  }
+  if (err) console.error('DB Connection Failed!', err);
+  else console.log('Connected to PostgreSQL:', result.rows[0]);
 });
 
-// --- Authentication Middleware ---
+// --- Authentication Middlewares ---
 function isAuthenticated(req, res, next) {
   if (req.session && req.session.user) return next();
-  res.status(401).json({ success: false, message: 'Not authenticated' });
+  return res.status(401).json({ success: false, message: 'Not authenticated' });
 }
-
 function requireAdmin(req, res, next) {
-  // Assuming permissionVal === 1 indicates admin
-  if (req.session.user && req.session.user.permissionVal === 1) {
-    return next();
-  }
-  res.status(403).json({ success: false, message: 'Admins only' });
+  // permissionVal === 1 indicates admin
+  if (req.session.user && req.session.user.permissionVal === 1) return next();
+  return res.status(403).json({ success: false, message: 'Admins only' });
 }
 
 // --- Login Endpoint ---
@@ -96,11 +90,17 @@ app.post('/game_sessions', isAuthenticated, async (req, res) => {
   const { data } = req.body;
   const sessionDate = new Date();
   try {
+    // create session with default active_page=1
     const result = await pool.query(
-      'INSERT INTO game_sessions (sessiondate, data) VALUES ($1, $2) RETURNING sessionid',
+      'INSERT INTO game_sessions (sessiondate, data, active_page) VALUES ($1, $2, 1) RETURNING sessionid',
       [sessionDate, JSON.stringify(data)]
     );
     const sessionId = result.rows[0].sessionid;
+    // create initial page 1 entry
+    await pool.query(
+      'INSERT INTO canvas_pages (session_id, page_number, canvas_json) VALUES ($1, 1, $2)',
+      [sessionId, JSON.stringify(data)]
+    );
     res.json({ success: true, sessionId, sessionDate, data });
   } catch (err) {
     console.error('Error creating game session:', err);
@@ -111,27 +111,22 @@ app.post('/game_sessions', isAuthenticated, async (req, res) => {
 app.put('/game_sessions/:sessionId', isAuthenticated, async (req, res) => {
   const { data } = req.body;
   const sessionDate = new Date();
+  const { sessionId } = req.params;
   try {
-    const result = await pool.query(
+    const update = await pool.query(
       'UPDATE game_sessions SET data = $1, sessiondate = $2 WHERE sessionid = $3',
-      [JSON.stringify(data), sessionDate, req.params.sessionId]
+      [JSON.stringify(data), sessionDate, sessionId]
     );
-    if (result.rowCount === 0) {
+    if (update.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
-    const updated = await pool.query(
+    const sel = await pool.query(
       'SELECT * FROM game_sessions WHERE sessionid = $1',
-      [req.params.sessionId]
+      [sessionId]
     );
-    let updatedSession = updated.rows[0];
-    try {
-      updatedSession.data = typeof updatedSession.data === 'string'
-        ? JSON.parse(updatedSession.data)
-        : updatedSession.data;
-    } catch (err) {
-      console.error('Error parsing session data:', err);
-    }
-    res.json({ success: true, session: updatedSession });
+    let sess = sel.rows[0];
+    sess.data = typeof sess.data === 'string' ? JSON.parse(sess.data) : sess.data;
+    res.json({ success: true, session: sess });
   } catch (err) {
     console.error('Update session error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -139,23 +134,18 @@ app.put('/game_sessions/:sessionId', isAuthenticated, async (req, res) => {
 });
 
 app.get('/api/game_sessions/:sessionId', isAuthenticated, async (req, res) => {
+  const { sessionId } = req.params;
   try {
     const result = await pool.query(
       'SELECT * FROM game_sessions WHERE sessionid = $1',
-      [req.params.sessionId]
+      [sessionId]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
-    let sessionData = result.rows[0];
-    try {
-      sessionData.data = typeof sessionData.data === 'string'
-        ? JSON.parse(sessionData.data)
-        : sessionData.data;
-    } catch (err) {
-      console.error('Error parsing session data:', err);
-    }
-    res.json({ success: true, session: sessionData });
+    let sess = result.rows[0];
+    sess.data = typeof sess.data === 'string' ? JSON.parse(sess.data) : sess.data;
+    res.json({ success: true, session: sess });
   } catch (err) {
     console.error('Error fetching session:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -163,37 +153,48 @@ app.get('/api/game_sessions/:sessionId', isAuthenticated, async (req, res) => {
 });
 
 // --- Page Management Endpoints ---
-// Switch active page (admin only)
+// Switch or initialize new page
 app.post('/session/:sessionId/page/switch', isAuthenticated, requireAdmin, async (req, res) => {
   const { sessionId } = req.params;
   const { newPage, currentJson } = req.body;
   try {
-    // Upsert current page state
+    // retrieve old active page
+    const selActive = await pool.query(
+      'SELECT active_page FROM game_sessions WHERE sessionid = $1',
+      [sessionId]
+    );
+    const oldPage = selActive.rows[0].active_page;
+    // save current page state
     await pool.query(
       `INSERT INTO canvas_pages(session_id, page_number, canvas_json, updated_at)
        VALUES($1, $2, $3, NOW())
-       ON CONFLICT (session_id, page_number)
+       ON CONFLICT(session_id, page_number)
        DO UPDATE SET canvas_json = EXCLUDED.canvas_json, updated_at = NOW()`,
-      [sessionId, req.session.user.active_page || 1, JSON.stringify(currentJson)]
+      [sessionId, oldPage, JSON.stringify(currentJson)]
     );
-    // Update sessions.active_page
+    // update active_page
     await pool.query(
-      'ALTER TABLE sessions ADD COLUMN IF NOT EXISTS active_page INT',
-      []
-    ); // ensure column exists
-    await pool.query(
-      'UPDATE sessions SET active_page = $1 WHERE sessionid = $2',
+      'UPDATE game_sessions SET active_page = $1 WHERE sessionid = $2',
       [newPage, sessionId]
     );
-    // Load next page JSON
-    const { rows } = await pool.query(
+    // fetch new page or create blank
+    const selNext = await pool.query(
       'SELECT canvas_json FROM canvas_pages WHERE session_id = $1 AND page_number = $2',
       [sessionId, newPage]
     );
-    const canvasJson = rows.length ? rows[0].canvas_json : null;
-    // Broadcast to all in room
-    io.to(sessionId).emit('page_switch', { page: newPage, canvasJson });
-    res.json({ success: true, page: newPage, canvasJson });
+    let nextJson;
+    if (selNext.rows.length) {
+      nextJson = selNext.rows[0].canvas_json;
+    } else {
+      nextJson = { objects: [], background: null };
+      await pool.query(
+        'INSERT INTO canvas_pages(session_id, page_number, canvas_json) VALUES($1, $2, $3)',
+        [sessionId, newPage, JSON.stringify(nextJson)]
+      );
+    }
+    // broadcast to room
+    io.to(sessionId).emit('page_switch', { page: newPage, canvasJson: nextJson });
+    res.json({ success: true, page: newPage, canvasJson: nextJson });
   } catch (err) {
     console.error('Page switch error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -204,64 +205,44 @@ app.post('/session/:sessionId/page/switch', isAuthenticated, requireAdmin, async
 app.get('/session/:sessionId/page/current', isAuthenticated, async (req, res) => {
   const { sessionId } = req.params;
   try {
-    // Ensure column exists
-    await pool.query(
-      'ALTER TABLE sessions ADD COLUMN IF NOT EXISTS active_page INT DEFAULT 1',
-      []
-    );
-    const { rows: sessRows } = await pool.query(
-      'SELECT active_page FROM sessions WHERE sessionid = $1',
+    const sel = await pool.query(
+      'SELECT active_page FROM game_sessions WHERE sessionid = $1',
       [sessionId]
     );
-    const activePage = sessRows.length ? sessRows[0].active_page : 1;
-    const { rows } = await pool.query(
+    const active = sel.rows[0].active_page || 1;
+    const selPage = await pool.query(
       'SELECT canvas_json FROM canvas_pages WHERE session_id = $1 AND page_number = $2',
-      [sessionId, activePage]
+      [sessionId, active]
     );
-    const canvasJson = rows.length ? rows[0].canvas_json : null;
-    res.json({ success: true, page: activePage, canvasJson });
+    const canvasJson = selPage.rows.length ? selPage.rows[0].canvas_json : null;
+    res.json({ success: true, page: active, canvasJson });
   } catch (err) {
     console.error('Fetch current page error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Redirect root to /login
+// --- HTML Serving Routes ---
 app.get('/', (_, res) => res.redirect('/login'));
-// Login page
-app.get('/login', (req, res) => {
-  res.sendFile(__dirname + '/public/login.html');
-});
-// Canvas page
-app.get('/game_sessions/:sessionId', isAuthenticated, (req, res) => {
-  res.sendFile(__dirname + '/public/canvas.html');
-});
+app.get('/login', (req, res) => res.sendFile(__dirname + '/public/login.html'));
+app.get('/game_sessions/:sessionId', isAuthenticated, (req, res) => res.sendFile(__dirname + '/public/canvas.html'));
 
-// Socket.IO for Real-Time Collaboration
+// --- Socket.IO for Real-Time Collaboration ---
 io.on('connection', (socket) => {
   console.log('A user connected');
-
-  // Join room (session)
-  socket.on('joinRoom', (sessionId) => {
-    socket.join(sessionId);
-    console.log(`Socket ${socket.id} joined room ${sessionId}`);
-  });
-
-  // Canvas object events
-  ['object:added', 'object:modified', 'object:removed', 'canvas-update'].forEach(evt => {
+  socket.on('joinRoom', (sessionId) => socket.join(sessionId));
+  ['object:added', 'object:modified', 'object:removed', 'canvas-update'].forEach((evt) => {
     socket.on(evt, (data) => {
       const room = data.sessionId;
       if (room) socket.to(room).emit(evt, data);
       else socket.broadcast.emit(evt, data);
     });
   });
-
-  // Page switch via socket (fallback)
+  // fallback page_switch event
   socket.on('page_switch', ({ sessionId, page, canvasJson }) => {
     io.to(sessionId).emit('page_switch', { page, canvasJson });
   });
-
-  socket.on('disconnect', () => console.log('A user disconnected'));
+  socket.on('disconnect', () => console.log('A user disconnected'));  
 });
 
 // Start the Server
