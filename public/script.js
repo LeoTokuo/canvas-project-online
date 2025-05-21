@@ -17,15 +17,12 @@ document.addEventListener("DOMContentLoaded", function() {
   let isDrawing = false;
   let lastDrawPoint = null;
   let rulerPoints = []; // to store two click coordinates
-  // Global variable for current session ID and page
+  // Global variable for current session ID
   let currentSessionId = null;
-    let activePage = 1;
-
+  
   // Global flag for auto-save (enabled only for moderators)
   let autoSaveEnabled = true;
   
-  const socket = io();
-
   // ====================
   // User Permission Configuration
   // ====================
@@ -39,10 +36,36 @@ document.addEventListener("DOMContentLoaded", function() {
   
   if (userPermissionVal === 1) {
     // Guest permissions: hide controls and disable auto-save
-    ["saveSession","layerValue","layerLabel","selectLabel","eraseLabel","selectSameLayer","eraseSameLayer"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = "none";
-    });
+    const saveBtn = document.getElementById("saveSession");
+    if (saveBtn) {
+      saveBtn.style.display = "none";
+    }
+    const layerInput = document.getElementById("layerValue");
+    if (layerInput) {
+      layerInput.style.display = "none";
+    }
+    const layerLabel = document.getElementById("layerLabel");
+    if (layerLabel) {
+      layerLabel.style.display = "none";
+    }
+    const selectLabel = document.getElementById("selectLabel");
+    if (selectLabel) {
+      selectLabel.style.display = "none";
+    }
+    const eraseLabel = document.getElementById("eraseLabel");
+    if (eraseLabel) {
+      eraseLabel.style.display = "none";
+    }
+    const selectSameLayer = document.getElementById("selectSameLayer");
+    if (selectSameLayer) {
+      selectSameLayer.style.display = "none";
+      selectSameLayer.checked = true;
+    }
+    const eraseSameLayer = document.getElementById("eraseSameLayer");
+    if (eraseSameLayer) {
+      eraseSameLayer.style.display = "none";
+      eraseSameLayer.checked = true;
+    }
     autoSaveEnabled = false;
     console.log("Auto-save disabled for guest.");
   } else {
@@ -75,76 +98,6 @@ document.addEventListener("DOMContentLoaded", function() {
   canvas.renderAll();
   canvas.setViewportTransform([1, 0, 0, 1, 1200, 2000]);
   
-  // ====================
-  // Page Controls Setup
-  // ====================
-  // Add page navigation UI only for admins
-  const pageControls = document.getElementById("page-controls");
-  if (userPermissionVal === 0 && pageControls) {
-    pageControls.style.display = 'block';
-    document.getElementById('prev-page').addEventListener('click', () => switchPage(activePage - 1));
-    document.getElementById('next-page').addEventListener('click', () => switchPage(activePage + 1));
-  }
-
-  // Fetch current page on load
-  async function loadCurrentPage() {
-    try {
-      const res = await fetch(`/session/${currentSessionId}/page/current`);
-      const data = await res.json();
-      if (data.success) {
-        activePage = data.page;
-        document.getElementById('page-indicator').textContent = `Page ${activePage}`;
-        if (data.canvasJson) {
-          canvas.loadFromJSON(data.canvasJson, canvas.renderAll.bind(canvas));
-        } else {
-          canvas.clear();
-          canvas.renderAll();
-        }
-        console.log(`Loaded page ${activePage}`);
-      } else {
-        alert('Failed to load page.');
-      }
-    } catch (err) {
-      console.error('Error loading current page:', err);
-    }
-  }
-  loadCurrentPage();
-
-  // Subscribe to page_switch via Socket.IO
-
-  socket.emit('joinRoom', currentSessionId);
-  socket.on('page_switch', ({ page, canvasJson }) => {
-    activePage = page;
-    document.getElementById('page-indicator').textContent = `Page ${activePage}`;
-    if (canvasJson) {
-      canvas.loadFromJSON(canvasJson, canvas.renderAll.bind(canvas));
-    } else {
-      canvas.clear();
-      canvas.renderAll();
-    }
-    console.log(`Switched to page ${page} via broadcast.`);
-  });
-
-  // Switch page function (admins only)
-  async function switchPage(newPage) {
-    if (userPermissionVal !== 0) return alert('Admins only.');
-    if (newPage < 1) return;
-    // Save current page state
-    const payload = { newPage, currentJson: canvas.toJSON(['layer']) };
-    try {
-      const res = await fetch(`/session/${currentSessionId}/page/switch`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      const result = await res.json();
-      if (!result.success) throw new Error(result.error || 'Switch failed');
-      console.log(`Requested switch to page ${newPage}`);
-      // Broadcast handled by server
-    } catch (err) {
-      console.error('Error switching page:', err);
-      alert('Page switch failed.');
-    }
-  }
-
   // ====================
   // Helper Functions
   // ====================
@@ -789,6 +742,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // ====================
   // Socket.IO for Real-Time Collaboration
   // ====================
+  const socket = io();
   
   // Join the room for the current session
   socket.emit('joinRoom', sessionId);

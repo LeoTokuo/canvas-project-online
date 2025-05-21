@@ -10,13 +10,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  
-  <div id="page-controls" style="display:none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #fff; padding: 5px; z-index: 1000;">
-    <button id="prev-page">&larr; Prev</button>
-    <span id="page-indicator">Page 1</span>
-    <button id="next-page">Next &rarr;</button>
-  </div>
-
+  <!-- Toolbar -->
   <div class="toolbar">
     <button id="draw">Desenhar</button>
     <button id="select">Selecionar</button>
@@ -45,10 +39,12 @@
     </div>  
   </div>
 
+  <!-- Canvas Container -->
   <div class="canvas-container">
     <canvas id="canvas" width="3000" height="3000"></canvas>
   </div>
 
+  <!-- Modal for Custom Image Resizing -->
   <div id="imageSettingsModal" class="modal">
     <div class="modal-content">
       <h3>Definir tamanho da Imagem</h3>
@@ -65,6 +61,6 @@
     </div>
   </div>
 
-  <script src="/script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
