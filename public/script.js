@@ -37,19 +37,19 @@ document.addEventListener("DOMContentLoaded", function() {
   if (userPermissionVal === 1) {
     // Guest permissions: hide controls and disable auto-save
     function hideElement(id, setChecked = null) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.style.display = "none";
-    if (setChecked !== null) el.checked = setChecked;
-  }
-}
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.display = "none";
+      if (setChecked !== null) el.checked = setChecked;
+    }
+  }   
 
-// Hide elements
-["saveSession", "layerValue", "layerLabel", "selectLabel", "eraseLabel"].forEach(hideElement);
+    // Hide elements
+  ["saveSession", "layerValue", "layerLabel", "selectLabel", "eraseLabel"].forEach(hideElement);
 
-// Hide and check checkboxes
-hideElement("selectSameLayer", true);
-hideElement("eraseSameLayer", true);
+    // Hide and check checkboxes
+    hideElement("selectSameLayer", true);
+    hideElement("eraseSameLayer", true);
     autoSaveEnabled = false;
     console.log("Auto-save disabled for guest.");
   } else {
